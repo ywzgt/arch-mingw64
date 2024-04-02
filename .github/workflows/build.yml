@@ -1,0 +1,85 @@
+name: mingw64
+on:
+  workflow_dispatch:
+
+jobs:
+  pass1:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    - name: Preparing ArchLinux rootfs
+      run: bash prepare.sh no-bootstrap
+    - name: Binutils
+      run: cp -rL mingw-w64-binutils/* rootfs/build; ./chroot_run makepkg -sr --noconfirm
+    - name: Mingw64-headers
+      run: cp -rL mingw-w64-headers/* rootfs/build; ./chroot_run makepkg -sri --noconfirm
+    - name: Mingw64-crt
+      run: cp -rL mingw-w64-crt/* rootfs/build; ./chroot_run makepkg -sri --noconfirm
+    - name: Mingw64-winpthreads
+      run: cp -rL mingw-w64-winpthreads/* rootfs/build; ./chroot_run makepkg -sri --noconfirm
+    - name: GCC
+      run: cp -rL mingw-w64-gcc/* rootfs/build; ./chroot_run makepkg -sr --noconfirm
+    - name: Update repo
+      run: |
+        ./chroot_run 0 repo-add /build/repo/mingw.db.tar.bz2 /build/repo/\*.pkg.tar\*
+        echo "TAG_VERSION=$(date +%Y%m%d)" >> $GITHUB_ENV
+    - name: Upload to Releases
+      if: ${{ env.TAG_VERSION != '' }}
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ env.TAG_VERSION }}
+        files: rootfs/build/repo/*
+        fail_on_unmatched_files: true
+
+    - name: Gh login
+      if: ${{ failure() }}
+      run: echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token; gh auth setup-git; gh auth status
+    - name: Setup tmate ssh session
+      if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true
+
+
+
+  pass2:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    needs: pass1
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    - name: Preparing ArchLinux rootfs
+      run: bash prepare.sh
+    - name: Binutils
+      run: cp -rL mingw-w64-binutils/* rootfs/build; ./chroot_run makepkg -sr --noconfirm
+    - name: Mingw64-headers
+      run: cp -rL mingw-w64-headers/* rootfs/build; ./chroot_run makepkg -sri --noconfirm
+    - name: Mingw64-crt
+      run: cp -rL mingw-w64-crt/* rootfs/build; ./chroot_run makepkg -sri --noconfirm
+    - name: Mingw64-winpthreads
+      run: cp -rL mingw-w64-winpthreads/* rootfs/build; ./chroot_run makepkg -sri --noconfirm
+    - name: GCC
+      run: cp -rL mingw-w64-gcc/* rootfs/build; ./chroot_run makepkg -sr --noconfirm
+    - name: Update repo
+      run: |
+        ./chroot_run 0 repo-add /build/repo/mingw.db.tar.bz2 /build/repo/\*.pkg.tar\*
+        echo "TAG_VERSION=$(date +%Y%m%d)" >> $GITHUB_ENV
+    - name: Upload to Releases
+      if: ${{ env.TAG_VERSION != '' }}
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ env.TAG_VERSION }}
+        files: rootfs/build/repo/*
+        fail_on_unmatched_files: true
+
+    - name: Gh login
+      if: ${{ failure() }}
+      run: echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token; gh auth setup-git; gh auth status
+    - name: Setup tmate ssh session
+      if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true
